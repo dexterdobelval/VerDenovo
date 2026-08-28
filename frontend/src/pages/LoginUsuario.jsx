@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../contexts/useAuth';
 
 function LoginUsuario() {
   const [email, setEmail] = useState('');
@@ -26,11 +26,11 @@ function LoginUsuario() {
   };
 
   return (
-    <div className="page-content" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem 1rem' }}>
+    <div className="page-content auth-surface" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem 1rem' }}>
       <div className="animate-scaleIn" style={{ width: '100%', maxWidth: '440px' }}>
 
         {/* Card principal */}
-        <div className="clay" style={{ overflow: 'hidden', background: 'rgba(255,255,255,0.78)' }}>
+        <div className="clay auth-card" style={{ overflow: 'hidden', background: 'rgba(255,255,255,0.78)' }}>
           {/* Header */}
           <div style={{
             background: 'linear-gradient(135deg, #16a34a 0%, #22c55e 100%)',

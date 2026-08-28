@@ -1,5 +1,5 @@
 import { Navigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../contexts/useAuth';
 
 function ProtectedRoute({ children, tipoRequerido }) {
   const { usuario, isLogado } = useAuth();
@@ -18,6 +18,11 @@ function ProtectedRoute({ children, tipoRequerido }) {
   if (tipoRequerido === 'usuario') {
     const isUsuarioOuAdmin = ['usuario', 'admin'].includes(usuario?.tipo);
     if (!isUsuarioOuAdmin) return <Navigate to="/login-usuario" replace />;
+  }
+
+  if (tipoRequerido === 'perfilUsuario') {
+    if (usuario?.tipo === 'ponto') return <Navigate to="/personalizar-ponto" replace />;
+    if (usuario?.tipo !== 'usuario') return <Navigate to="/" replace />;
   }
 
   if (tipoRequerido === 'ponto') {

@@ -109,8 +109,8 @@ function RecuperarSenha() {
   const icones = ['', 'bi-key', 'bi-shield-check', 'bi-lock', 'bi-check-circle'];
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f8fffe', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-      <div className="animate-scaleIn" style={cardStyle}>
+    <div className="auth-surface" style={{ minHeight: '100vh', background: '#f8fffe', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+      <div className="auth-card animate-scaleIn" style={cardStyle}>
 
         <div style={headerStyle}>
           <div style={iconStyle}>

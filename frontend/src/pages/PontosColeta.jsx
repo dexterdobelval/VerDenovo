@@ -1,14 +1,15 @@
 import { useState, useEffect, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { apiService } from '../services/api';
+import Icon from '../components/Icon';
+import { MATERIAIS_ACEITOS, normalizarMateriais } from '../utils/materiais';
 
-const materialConfig = {
-  'Papel':      { icon: 'bi-file-earmark-text-fill', color: '#3b82f6', emoji: '📄' },
-  'Plástico':   { icon: 'bi-cup-fill',               color: '#ef4444', emoji: '🥤' },
-  'Vidro':      { icon: 'bi-cup-straw',              color: '#10b981', emoji: '🍶' },
-  'Metal':      { icon: 'bi-gear-fill',              color: '#f59e0b', emoji: '🥫' },
-  'Eletrônico': { icon: 'bi-phone-fill',             color: '#8b5cf6', emoji: '📱' },
-  'Orgânico':   { icon: 'bi-flower1',                color: '#84cc16', emoji: '🌱' },
-};
+const materialConfig = Object.fromEntries(
+  MATERIAIS_ACEITOS.map(material => [
+    material.label,
+    { id: material.id, icon: material.icon, color: material.color }
+  ])
+);
 
 const pastel = {
   'Papel':      { bg: '#dbeafe', activeBg: '#2563eb', border: '#93c5fd', activeText: '#fff', text: '#1d4ed8' },
@@ -19,29 +20,28 @@ const pastel = {
   'Orgânico':   { bg: '#ecfccb', activeBg: '#65a30d', border: '#bef264', activeText: '#fff', text: '#3f6212' },
 };
 
+
+const textoOuPadrao = (valor, padrao = 'Não informado') => valor || padrao;
+
+const pontoVerificado = (ponto) => ponto?.statusVerificacao === 'VERIFICADO';
+
 function FilterChip({ nome, cfg, ativo, onClick }) {
-  const [hovered, setHovered] = useState(false);
   const p = pastel[nome] || { bg: '#f3f4f6', activeBg: '#374151', border: '#d1d5db', activeText: '#fff', text: '#374151' };
-  const bg = ativo ? p.activeBg : hovered ? p.border : p.bg;
+  const bg = ativo ? p.activeBg : p.bg;
   const color = ativo ? p.activeText : p.text;
-  const shadow = ativo ? `0 4px 14px ${p.activeBg}55` : hovered ? `0 2px 8px ${p.activeBg}30` : 'none';
+  const shadow = ativo ? `0 4px 14px ${p.activeBg}55` : 'none';
   return (
     <button
+      type="button"
       onClick={onClick}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
+      aria-pressed={ativo}
+      className="filter-chip"
       style={{
-        display: 'inline-flex', alignItems: 'center', gap: '6px',
-        padding: '7px 16px', borderRadius: '999px',
         border: `1.5px solid ${ativo ? p.activeBg : p.border}`,
         background: bg, color,
-        fontWeight: ativo ? 700 : 500, fontSize: '0.82rem',
         boxShadow: shadow,
-        transform: hovered && !ativo ? 'translateY(-1px)' : 'none',
-        transition: 'all 0.18s ease',
-        cursor: 'pointer', whiteSpace: 'nowrap',
       }}>
-      <span style={{ fontSize: '0.95rem', lineHeight: 1 }}>{cfg.emoji}</span>
+      <Icon name={cfg.icon} size={15} />
       {nome}
       {ativo && <i className="bi bi-check-lg" style={{ fontSize: '0.75rem', marginLeft: '2px' }} />}
     </button>
@@ -51,19 +51,12 @@ function FilterChip({ nome, cfg, ativo, onClick }) {
 function SearchInput({ busca, setBusca }) {
   const [focused, setFocused] = useState(false);
   return (
-    <div className="flex-grow-1 d-flex align-items-center gap-3 px-4"
-      style={{
-        background: 'white',
-        borderRadius: '16px',
-        height: '58px',
-        border: focused ? '2px solid #059669' : '2px solid #e5e7eb',
-        boxShadow: focused ? '0 0 0 4px rgba(5,150,105,0.1), 0 4px 16px rgba(0,0,0,0.06)' : '0 4px 16px rgba(0,0,0,0.06)',
-        transition: 'border-color 0.2s ease, box-shadow 0.2s ease',
-      }}>
+    <div className={`points-search ${focused ? 'is-focused' : ''}`}>
       <i className="bi bi-search flex-shrink-0"
         style={{ fontSize: '1.1rem', color: focused ? '#059669' : '#9ca3af', transition: 'color 0.2s ease' }} />
       <input
         type="text"
+        aria-label="Buscar pontos de coleta"
         className="border-0 w-100 bg-transparent"
         placeholder="Buscar por nome, CEP ou endereço..."
         value={busca}
@@ -75,6 +68,7 @@ function SearchInput({ busca, setBusca }) {
       {busca && (
         <button className="btn p-0 d-flex align-items-center flex-shrink-0"
           onClick={() => setBusca('')}
+          aria-label="Limpar busca"
           style={{ color: '#9ca3af', lineHeight: 1, background: 'none', border: 'none' }}>
           <i className="bi bi-x-circle-fill" style={{ fontSize: '1rem' }} />
         </button>
@@ -84,114 +78,87 @@ function SearchInput({ busca, setBusca }) {
 }
 
 function PontoCard({ ponto, onClick }) {
-  const [hovered, setHovered] = useState(false);
-  const [btnHovered, setBtnHovered] = useState(false);
-  const cfg_mat = (mat) => materialConfig[mat] || { color: '#6b7280', emoji: '♻️' };
-  const materiais = (ponto.material || 'Não informado').split(', ');
+  const materiais = normalizarMateriais(ponto.material);
+  const enderecoCurto = ponto.logradouro
+    ? `${ponto.logradouro}${ponto.numero ? `, Nº ${ponto.numero}` : ''}`
+    : `CEP: ${textoOuPadrao(ponto.cep)}`;
+  const bairroCidade = [ponto.bairro, ponto.cidade].filter(Boolean).join(' - ');
 
   return (
     <div
-      className="h-100 d-flex flex-column"
+      className="ponto-card point-card h-100"
       onClick={onClick}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        borderRadius: '20px',
-        background: 'rgba(255,255,255,0.8)',
-        border: hovered ? '2px solid rgba(74,222,128,0.5)' : '2px solid rgba(255,255,255,0.6)',
-        boxShadow: hovered
-          ? '6px 6px 0px rgba(0,0,0,0.12), 0 16px 40px rgba(5,150,105,0.12)'
-          : '4px 4px 0px rgba(0,0,0,0.08), 0 4px 16px rgba(0,0,0,0.06)',
-        transform: hovered ? 'translateY(-6px)' : 'translateY(0)',
-        transition: 'all 0.25s ease',
-        cursor: 'pointer',
-        overflow: 'hidden',
+      role="button"
+      tabIndex={0}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') onClick();
       }}>
+      <div className="point-card-main">
+        <div className="point-card-icon">
+          <i className="bi bi-geo-alt-fill" />
+        </div>
 
-      {/* Linha de cor no topo */}
-      <div style={{ height: '4px', background: 'linear-gradient(90deg, #059669, #34d399)', borderRadius: '20px 20px 0 0' }} />
-
-      <div className="d-flex flex-column flex-grow-1" style={{ padding: '1.4rem 1.5rem 1.5rem' }}>
-
-        {/* Header do card */}
-        <div className="d-flex align-items-start justify-content-between mb-3">
-          <div className="d-flex align-items-center justify-content-center rounded-3 flex-shrink-0"
-            style={{ width: '42px', height: '42px', background: '#f0fdf4', border: '1px solid #bbf7d0' }}>
-            <i className="bi bi-geo-alt-fill" style={{ color: '#059669', fontSize: '1.1rem' }} />
+        <div className="point-card-content">
+          <div className="point-card-heading">
+            <div>
+              <div className="d-flex gap-2 flex-wrap mb-1">
+                <span className="point-status">
+                  <i className="bi bi-circle-fill" />
+                  Ativo
+                </span>
+                {pontoVerificado(ponto) && (
+                  <span className="point-status" style={{ background: '#ecfdf5', color: '#047857', borderColor: '#a7f3d0' }}>
+                    <i className="bi bi-patch-check-fill" />
+                    Verificado
+                  </span>
+                )}
+              </div>
+              <h3>{textoOuPadrao(ponto.nome, 'Ponto de coleta')}</h3>
+            </div>
           </div>
-          <span style={{
-            background: '#f0fdf4', color: '#059669', fontWeight: 700,
-            fontSize: '0.68rem', borderRadius: '999px', padding: '4px 10px',
-            border: '1px solid #bbf7d0', letterSpacing: '0.02em',
-          }}>
-            <i className="bi bi-circle-fill me-1" style={{ fontSize: '0.3rem', verticalAlign: 'middle', color: '#22c55e' }} />
-            Ativo
-          </span>
-        </div>
 
-        {/* Nome */}
-        <h6 style={{ color: '#0f172a', fontSize: '1.1rem', fontWeight: 800, lineHeight: '1.3', marginBottom: '5px', letterSpacing: '-0.02em' }}>
-          {ponto.nome}
-        </h6>
+          <p className="point-address">
+            <i className="bi bi-map" />
+            <span>{enderecoCurto}</span>
+          </p>
+          {bairroCidade && <p className="point-neighborhood">{bairroCidade}</p>}
 
-        {/* Endereço */}
-        <p style={{ fontSize: '0.77rem', color: '#b0bac5', fontWeight: 400, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '4px', lineHeight: '1.5' }}>
-          <i className="bi bi-map-fill" style={{ fontSize: '0.7rem', flexShrink: 0 }} />
-          {ponto.logradouro ? `${ponto.logradouro}, Nº ${ponto.numero}` : `CEP: ${ponto.cep}`}
-        </p>
-
-        {/* Badges de info */}
-        <div className="d-flex flex-wrap gap-2 mb-3">
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', background: '#eff6ff', color: '#1d4ed8', fontSize: '0.73rem', fontWeight: 600, padding: '5px 10px', borderRadius: '8px', letterSpacing: '0.01em' }}>
-            <i className="bi bi-clock-fill" style={{ fontSize: '0.68rem' }} />
-            {ponto.horaFuncionamento || '—'}
-          </span>
-          {ponto.telefone && (
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', background: '#faf5ff', color: '#7c3aed', fontSize: '0.73rem', fontWeight: 600, padding: '5px 10px', borderRadius: '8px', letterSpacing: '0.01em' }}>
-              <i className="bi bi-telephone-fill" style={{ fontSize: '0.68rem' }} />
-              {ponto.telefone}
+          <div className="point-meta-grid">
+            <span>
+              <i className="bi bi-clock-fill" />
+              {textoOuPadrao(ponto.horaFuncionamento, 'Horário não informado')}
             </span>
-          )}
+            <span>
+              <i className="bi bi-telephone-fill" />
+              {textoOuPadrao(ponto.telefone, 'Contato não informado')}
+            </span>
+          </div>
         </div>
+      </div>
 
-        {/* Chips de materiais */}
-        <div className="d-flex flex-wrap gap-1 mb-4">
-          {materiais.map((mat, i) => {
-            const c = cfg_mat(mat);
-            return (
-              <span key={i} style={{
-                display: 'inline-flex', alignItems: 'center', gap: '4px',
-                fontSize: '0.72rem', fontWeight: 600,
-                color: c.color, background: `${c.color}18`,
-                border: `1px solid ${c.color}35`,
-                borderRadius: '999px', padding: '3px 10px',
-              }}>
-                <span style={{ fontSize: '0.85rem' }}>{c.emoji}</span>{mat}
-              </span>
-            );
-          })}
+      <div className="point-card-footer">
+        <div className="point-materials">
+          {materiais.slice(0, 4).map((mat) => {
+              const c = materialConfig[mat.label] || { color: mat.color, icon: mat.icon };
+              return (
+                <span key={mat.id || mat.label} className="material-tag" style={{ color: c.color, background: `${c.color}18`, border: `1px solid ${c.color}35` }}>
+                  <Icon name={c.icon} size={13} />{mat.label}
+                </span>
+              );
+            })}
+          {materiais.length > 4 && <span className="material-tag material-tag-more">+{materiais.length - 4}</span>}
         </div>
-
-        {/* Botão */}
-        <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: '1rem', marginTop: 'auto' }}>
-          <button
-            onMouseEnter={() => setBtnHovered(true)}
-            onMouseLeave={() => setBtnHovered(false)}
-            style={{
-              width: '100%', border: 'none', borderRadius: '12px',
-              padding: '11px', fontSize: '0.88rem', fontWeight: 700, letterSpacing: '0.01em',
-              color: 'white', cursor: 'pointer',
-              background: btnHovered
-                ? 'linear-gradient(135deg, #047857, #059669)'
-                : 'linear-gradient(135deg, #059669, #10b981)',
-              boxShadow: btnHovered ? '0 6px 20px rgba(5,150,105,0.4)' : '0 2px 8px rgba(5,150,105,0.2)',
-              transform: btnHovered ? 'translateY(-1px)' : 'none',
-              transition: 'all 0.2s ease',
-            }}>
-            <i className="bi bi-arrow-right-circle me-2" />
-            Ver Detalhes
-          </button>
-        </div>
+        <button
+          type="button"
+          className="point-card-action"
+          aria-label={`Ver detalhes de ${textoOuPadrao(ponto.nome, 'ponto de coleta')}`}
+          onClick={(event) => {
+            event.stopPropagation();
+            onClick();
+          }}>
+          Detalhes
+          <i className="bi bi-arrow-right" />
+        </button>
       </div>
     </div>
   );
@@ -228,6 +195,7 @@ function ModalButton({ onClick, disabled, variant, icon, label, style }) {
 
   return (
     <button
+      type="button"
       onClick={onClick}
       disabled={disabled}
       onMouseEnter={() => setHovered(true)}
@@ -266,6 +234,7 @@ function MapsButton({ onClick }) {
   const [hovered, setHovered] = useState(false);
   return (
     <button
+      type="button"
       onClick={onClick}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
@@ -295,12 +264,21 @@ function PontosColeta() {
 
   useEffect(() => { carregarPontos(); }, []);
 
+  useEffect(() => {
+    if (!pontoSelecionado) return undefined;
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') setPontoSelecionado(null);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [pontoSelecionado]);
+
   const carregarPontos = async () => {
     setLoading(true);
     setErro('');
     try {
       const data = await apiService.listarPontos();
-      setPontos(data);
+      setPontos(Array.isArray(data) ? data : []);
     } catch {
       setErro('Não foi possível carregar os pontos de coleta. Tente novamente.');
     } finally {
@@ -308,29 +286,34 @@ function PontosColeta() {
     }
   };
 
-  const toggleMaterial = (mat) => {
+  const toggleMaterial = (materialId) => {
     setFiltroMateriais(prev =>
-      prev.includes(mat) ? prev.filter(m => m !== mat) : [...prev, mat]
+      prev.includes(materialId) ? prev.filter(m => m !== materialId) : [...prev, materialId]
     );
   };
 
   const pontosFiltrados = useMemo(() => {
     return pontos.filter(p => {
       const termoBusca = busca.toLowerCase();
+      const materialIds = normalizarMateriais(p.material).map(material => material.id);
       const matchBusca = !busca ||
         p.nome?.toLowerCase().includes(termoBusca) ||
         p.cep?.includes(termoBusca) ||
-        p.logradouro?.toLowerCase().includes(termoBusca);
+        p.logradouro?.toLowerCase().includes(termoBusca) ||
+        p.numero?.toLowerCase().includes(termoBusca);
       const matchMaterial = filtroMateriais.length === 0 ||
-        filtroMateriais.every(m => p.material?.includes(m));
+        filtroMateriais.every(m => materialIds.includes(m));
       return matchBusca && matchMaterial;
     });
   }, [pontos, busca, filtroMateriais]);
 
-  const formatarMateriais = (material) => material || 'Não informado';
+  const formatarMateriais = (material) => {
+    const materiais = normalizarMateriais(material);
+    return materiais.length ? materiais.map(item => item.label).join(', ') : 'Não informado';
+  };
 
   const abrirMaps = (ponto) => {
-    const query = encodeURIComponent(`${ponto.logradouro || ''} ${ponto.numero || ''} ${ponto.cep || ''}`);
+    const query = encodeURIComponent(`${ponto?.logradouro || ''} ${ponto?.numero || ''} ${ponto?.cep || ''}`.trim() || ponto?.nome || 'ponto de coleta');
     window.open(`https://www.google.com/maps/search/?api=1&query=${query}`, '_blank');
   };
 
@@ -339,133 +322,122 @@ function PontosColeta() {
       {/* Page background */}
       <div style={{ position: 'fixed', inset: 0, background: 'linear-gradient(135deg, #d4edda 0%, #c8e6c9 40%, #dcedc8 100%)', zIndex: -1, pointerEvents: 'none' }} />
 
-      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '5rem 0 3rem' }}>
+      <div className="pontos-shell points-page-shell">
 
-      {/* Hero */}
-      <div className="mb-5 position-relative overflow-hidden animate-fadeInUp" style={{ background: 'linear-gradient(135deg, #14532d 0%, #166534 40%, #15803d 100%)', borderRadius: '28px', padding: '4rem 2rem 3.5rem', border: '2px solid rgba(74,222,128,0.2)', boxShadow: '6px 6px 0px rgba(0,0,0,0.14), 0 16px 48px rgba(0,0,0,0.10)' }}>
-        {/* Orbs decorativos */}
-        <div className="position-absolute" style={{ top: '-40px', right: '-40px', width: '220px', height: '220px', background: 'rgba(255,255,255,0.04)', borderRadius: '50%' }} />
-        <div className="position-absolute" style={{ bottom: '-60px', left: '-30px', width: '180px', height: '180px', background: 'rgba(255,255,255,0.04)', borderRadius: '50%' }} />
-        <div className="position-absolute" style={{ top: '30%', right: '18%', width: '60px', height: '60px', background: 'rgba(255,255,255,0.06)', borderRadius: '50%' }} />
+      <section className="points-dashboard animate-fadeInUp">
+        <div className="points-dashboard-copy">
+          <span className="section-kicker"><i className="bi bi-recycle me-2" />Reciclagem local</span>
+          <h1>Pontos de Coleta</h1>
+          <p>Encontre locais cadastrados, filtre por material e veja rapidamente o melhor lugar para descartar seus recicláveis.</p>
+        </div>
 
-        <div className="text-center position-relative" style={{ zIndex: 2 }}>
-          {/* Badge */}
-          <div className="d-inline-flex align-items-center px-4 py-2 rounded-pill mb-4 animate-fadeInUp" style={{ background: 'rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.9)', fontWeight: 700, fontSize: '0.78rem', letterSpacing: '0.08em', textTransform: 'uppercase', border: '2px solid rgba(255,255,255,0.2)', backdropFilter: 'blur(8px)', boxShadow: '3px 3px 0px rgba(0,0,0,0.10)' }}>
-            <i className="bi bi-recycle me-2"></i>Reciclagem
+        <div className="points-app-panel" aria-label="Resumo visual dos pontos de coleta">
+          <div className="points-mini-map" aria-hidden="true">
+            <span className="map-pin map-pin-a" />
+            <span className="map-pin map-pin-b" />
+            <span className="map-pin map-pin-c" />
+            <div className="map-route" />
           </div>
-
-          {/* Título */}
-          <h1 className="animate-fadeInUp animate-delay-1" style={{ fontSize: 'clamp(2.6rem, 5.5vw, 4.2rem)', lineHeight: '1.05', color: '#ffffff', letterSpacing: '-0.04em', fontWeight: 800, marginBottom: '1rem' }}>
-            Pontos de{' '}
-            <span style={{ color: '#6ee7b7' }}>Coleta</span>
-          </h1>
-
-          {/* Subtítulo */}
-          <p className="animate-fadeInUp animate-delay-2" style={{ fontSize: '1.05rem', lineHeight: '1.8', maxWidth: '460px', margin: '0 auto 2.75rem', color: 'rgba(255,255,255,0.6)', fontWeight: 300, letterSpacing: '0.01em' }}>
-            Encontre o ponto mais próximo e descarte seus recicláveis corretamente
-          </p>
-
-          {/* Indicadores */}
-          <div className="d-flex justify-content-center gap-3 flex-wrap animate-fadeInUp animate-delay-3">
+          <div className="points-dashboard-stats">
             {[
-              { icon: 'bi-geo-alt-fill',  label: 'Pontos Ativos', value: pontos.length, iconColor: '#059669', iconBg: '#dcfce7' },
-              { icon: 'bi-recycle',       label: 'Materiais',     value: '6 tipos',     iconColor: '#2563eb', iconBg: '#dbeafe' },
-              { icon: 'bi-leaf-fill',     label: 'Sustentável',   value: '100%',        iconColor: '#65a30d', iconBg: '#ecfccb' },
-            ].map((s, i) => (
-              <div key={i} className="d-flex align-items-center gap-3 px-4 py-3 rounded-4"
-                style={{ background: 'rgba(255,255,255,0.9)', boxShadow: '4px 4px 0px rgba(0,0,0,0.12)', minWidth: '160px', border: '2px solid rgba(255,255,255,0.7)', borderRadius: '18px' }}>
-                <div className="d-flex align-items-center justify-content-center rounded-3 flex-shrink-0"
-                  style={{ width: '42px', height: '42px', background: s.iconBg }}>
-                  <i className={`bi ${s.icon}`} style={{ color: s.iconColor, fontSize: '1.15rem' }}></i>
-                </div>
-                <div className="text-start">
-                  <div style={{ color: '#111827', fontSize: '1.2rem', fontWeight: 800, lineHeight: 1, letterSpacing: '-0.02em' }}>{s.value}</div>
-                  <div style={{ color: '#6b7280', fontSize: '0.73rem', fontWeight: 500, marginTop: '3px', letterSpacing: '0.02em' }}>{s.label}</div>
+              { icon: 'bi-geo-alt-fill', label: 'Pontos ativos', value: pontos.length, tone: 'green' },
+              { icon: 'bi-funnel-fill', label: 'Na tela', value: pontosFiltrados.length, tone: 'blue' },
+              { icon: 'bi-tags-fill', label: 'Materiais', value: '6 tipos', tone: 'amber' },
+            ].map((stat) => (
+              <div key={stat.label} className={`points-stat points-stat-${stat.tone}`}>
+                <i className={`bi ${stat.icon}`} />
+                <div>
+                  <strong>{stat.value}</strong>
+                  <span>{stat.label}</span>
                 </div>
               </div>
             ))}
           </div>
         </div>
-      </div>
+      </section>
 
-      {/* Busca e Filtros */}
-      <div className="mb-5 animate-fadeInUp animate-delay-3">
-        <div className="d-flex gap-3 mb-3">
+      <section className="points-toolbar animate-fadeInUp animate-delay-1" aria-label="Busca e filtros de pontos de coleta">
+        <div className="points-toolbar-row">
           <SearchInput busca={busca} setBusca={setBusca} />
           {(busca || filtroMateriais.length > 0) && (
-            <button className="btn fw-semibold px-4"
-              onClick={() => { setBusca(''); setFiltroMateriais([]); }}
-              style={{ borderRadius: '14px', border: '2px solid rgba(252,165,165,0.6)', background: 'rgba(254,226,226,0.7)', color: '#ef4444', height: '58px', whiteSpace: 'nowrap', fontSize: '0.85rem', flexShrink: 0, boxShadow: '3px 3px 0px rgba(0,0,0,0.08)' }}>
-              <i className="bi bi-x-lg me-1"></i>Limpar
+            <button className="points-clear-btn"
+              type="button"
+              onClick={() => { setBusca(''); setFiltroMateriais([]); }}>
+              <i className="bi bi-x-lg"></i>Limpar
             </button>
           )}
         </div>
 
-        <div className="d-flex flex-wrap gap-2 align-items-center">
-          <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#9ca3af', letterSpacing: '0.08em', textTransform: 'uppercase' }}>Filtrar:</span>
-          {Object.entries(materialConfig).map(([nome, cfg]) => {
-            const ativo = filtroMateriais.includes(nome);
-            return (
-              <FilterChip key={nome} nome={nome} cfg={cfg} ativo={ativo} onClick={() => toggleMaterial(nome)} />
-            );
-          })}
-          {(busca || filtroMateriais.length > 0) && (
-            <span className="ms-auto" style={{ fontSize: '0.82rem', color: '#6b7280' }}>
-              <i className="bi bi-funnel-fill me-1" style={{ color: '#059669' }}></i>
-              <strong style={{ color: '#111827' }}>{pontosFiltrados.length}</strong>
-              <span className="text-muted"> de {pontos.length}</span>
-            </span>
-          )}
-        </div>
-      </div>
-
-      {/* Loading */}
-      {loading && (
-        <div className="text-center py-5 my-4">
-          <div className="d-inline-flex align-items-center justify-content-center mb-4" style={{ width: '72px', height: '72px', borderRadius: '50%', background: 'linear-gradient(135deg, #dcfce7, #bbf7d0)' }}>
-            <div className="spinner-border text-success" style={{ width: '2rem', height: '2rem' }}></div>
+        <div className="points-filter-row">
+          <span className="points-filter-label">Materiais</span>
+          <div className="points-filter-chips">
+            {MATERIAIS_ACEITOS.map((material) => {
+              const cfg = materialConfig[material.label];
+              const ativo = filtroMateriais.includes(material.id);
+              return (
+                <FilterChip key={material.id} nome={material.label} cfg={cfg} ativo={ativo} onClick={() => toggleMaterial(material.id)} />
+              );
+            })}
           </div>
-          <p className="fw-semibold text-muted mb-0">Carregando pontos de coleta...</p>
+          <span className="points-result-count">
+            <strong>{pontosFiltrados.length}</strong> de {pontos.length}
+          </span>
+        </div>
+      </section>
+
+      {loading && (
+        <div className="points-state loading-state animate-scaleIn">
+          <div className="points-state-icon">
+            <div className="spinner-border text-success" />
+          </div>
+          <h2>Carregando pontos</h2>
+          <p>Buscando os locais cadastrados para você.</p>
         </div>
       )}
 
-      {/* Erro */}
       {!loading && erro && (
-        <div className="text-center py-5 my-4">
-          <div className="d-inline-flex align-items-center justify-content-center mb-4 rounded-4" style={{ width: '80px', height: '80px', background: '#fff1f2', border: '2px solid #fecdd3' }}>
-            <i className="bi bi-wifi-off" style={{ fontSize: '2rem', color: '#ef4444' }}></i>
+        <div className="points-state error-state animate-scaleIn">
+          <div className="points-state-icon points-state-icon-error">
+            <i className="bi bi-wifi-off"></i>
           </div>
-          <h5 className="fw-bold mb-2" style={{ color: '#1f2937' }}>Ops, algo deu errado</h5>
-          <p className="text-muted mb-4" style={{ fontSize: '0.9rem' }}>{erro}</p>
-          <button className="btn btn-success fw-semibold px-4" onClick={carregarPontos} style={{ borderRadius: '12px' }}>
+          <h2>Não foi possível carregar</h2>
+          <p>{erro}</p>
+          <button className="btn btn-success fw-semibold px-4" type="button" onClick={carregarPontos}>
             <i className="bi bi-arrow-clockwise me-2"></i>Tentar novamente
           </button>
         </div>
       )}
 
-      {/* Sem resultados */}
       {!loading && !erro && pontosFiltrados.length === 0 && (
-        <div className="text-center py-5 my-4">
-          <div className="d-inline-flex align-items-center justify-content-center mb-4 rounded-4" style={{ width: '80px', height: '80px', background: '#f8fafc', border: '2px solid #e2e8f0' }}>
-            <i className="bi bi-search" style={{ fontSize: '2rem', color: '#94a3b8' }}></i>
+        <div className="points-state empty-state animate-scaleIn">
+          <div className="points-state-icon">
+            <i className="bi bi-map"></i>
           </div>
-          <h5 className="fw-bold mb-2" style={{ color: '#1f2937' }}>
+          <h2>
             {pontos.length === 0 ? 'Nenhum ponto cadastrado ainda.' : 'Nenhum resultado encontrado'}
-          </h5>
-          <p className="text-muted mb-4" style={{ fontSize: '0.9rem' }}>Tente ajustar os filtros ou a busca.</p>
-          {(busca || filtroMateriais.length > 0) && (
-            <button className="btn btn-outline-success fw-semibold px-4" onClick={() => { setBusca(''); setFiltroMateriais([]); }} style={{ borderRadius: '12px' }}>
+          </h2>
+          <p>
+            {pontos.length === 0
+              ? 'Quando um ponto for cadastrado, ele aparecerá aqui com materiais, endereço e detalhes.'
+              : 'Tente combinar menos filtros ou buscar por outro endereço, CEP ou nome.'}
+          </p>
+          <div className="points-state-actions">
+            <Link to="/cadastrar" className="btn btn-success fw-semibold px-4">
+              <i className="bi bi-plus-circle me-2"></i>Cadastrar ponto
+            </Link>
+            {(busca || filtroMateriais.length > 0) && (
+              <button className="btn btn-outline-success fw-semibold px-4" type="button" onClick={() => { setBusca(''); setFiltroMateriais([]); }}>
               <i className="bi bi-x-circle me-2"></i>Limpar filtros
-            </button>
-          )}
+              </button>
+            )}
+          </div>
         </div>
       )}
 
-      {/* Cards */}
-      {!loading && !erro && (
-        <div className="row g-4 pb-4">
+      {!loading && !erro && pontosFiltrados.length > 0 && (
+        <div className="points-grid pb-4">
           {pontosFiltrados.map((ponto, index) => (
-            <div key={ponto.id} className="col-lg-6 col-xl-4 animate-scaleIn" style={{ animationDelay: `${index * 0.06}s` }}>
+            <div key={ponto.id || `${ponto.nome}-${ponto.cep}-${index}`} className="animate-scaleIn" style={{ animationDelay: `${index * 0.06}s` }}>
               <PontoCard ponto={ponto} onClick={() => setPontoSelecionado(ponto)} />
             </div>
           ))}
@@ -479,9 +451,12 @@ function PontosColeta() {
         <>
           <style>{`
             @keyframes modalBackdropIn { from { opacity: 0; } to { opacity: 1; } }
-            @keyframes modalContentIn  { from { opacity: 0; transform: scale(0.96) translateY(12px); } to { opacity: 1; transform: scale(1) translateY(0); } }
-            .modal-pontos-backdrop { animation: modalBackdropIn 0.22s ease both; }
-            .modal-pontos-content  { animation: modalContentIn 0.28s cubic-bezier(0.34,1.1,0.64,1) both; }
+            @keyframes modalContentIn  { from { opacity: 0; transform: scale(0.985) translateY(10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+            .modal-pontos-backdrop { animation: modalBackdropIn var(--motion-normal, 220ms) ease both; }
+            .modal-pontos-content  { animation: modalContentIn 260ms var(--ease-out, ease) both; }
+            @media (max-width: 575px) {
+              .modal-pontos-stats { grid-template-columns: repeat(2, 1fr) !important; padding: 1rem !important; }
+            }
           `}</style>
           <div
             className="modal d-block modal-pontos-backdrop"
@@ -507,11 +482,13 @@ function PontosColeta() {
                     <p style={{ color: 'rgba(255,255,255,0.45)', fontWeight: 400, fontSize: '0.8rem', margin: 0, display: 'flex', alignItems: 'center', gap: '5px', letterSpacing: '0.01em' }}>
                       <i className="bi bi-geo-alt" style={{ fontSize: '0.75rem' }}></i>
                       {pontoSelecionado.logradouro
-                        ? `${pontoSelecionado.logradouro}, Nº ${pontoSelecionado.numero}`
-                        : `CEP: ${pontoSelecionado.cep}`}
+                        ? `${pontoSelecionado.logradouro}${pontoSelecionado.numero ? `, Nº ${pontoSelecionado.numero}` : ''}`
+                        : `CEP: ${textoOuPadrao(pontoSelecionado.cep)}`}
                     </p>
                   </div>
                   <button
+                    type="button"
+                    aria-label="Fechar detalhes do ponto"
                     onClick={() => setPontoSelecionado(null)}
                     onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.22)'; e.currentTarget.style.transform = 'scale(1.08)'; }}
                     onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; e.currentTarget.style.transform = 'scale(1)'; }}
@@ -522,11 +499,14 @@ function PontosColeta() {
               </div>
 
               {/* Stats bar */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0', borderBottom: '1px solid #f0f0f0', background: '#f8fafc', padding: '1.25rem 1.5rem', gap: '0.75rem' }}>
+              <div className="modal-pontos-stats" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', borderBottom: '1px solid #f0f0f0', background: '#f8fafc', padding: '1.25rem 1.5rem', gap: '0.75rem' }}>
                 {[
                   { label: 'Status',    value: 'Ativo',                                                                   icon: 'bi-check-circle-fill', color: '#059669', bg: '#f0fdf4', border: '#bbf7d0' },
-                  { label: 'Horário',   value: pontoSelecionado.horaFuncionamento || '—',                               icon: 'bi-clock-fill',        color: '#2563eb', bg: '#eff6ff', border: '#bfdbfe' },
-                  { label: 'Contato',   value: pontoSelecionado.telefone || 'Não informado',                              icon: 'bi-telephone-fill',    color: '#7c3aed', bg: '#faf5ff', border: '#ddd6fe' },
+                  ...(pontoVerificado(pontoSelecionado)
+                    ? [{ label: 'Verificacao', value: 'Verificado', icon: 'bi-patch-check-fill', color: '#047857', bg: '#ecfdf5', border: '#a7f3d0' }]
+                    : []),
+                  { label: 'Horário',   value: textoOuPadrao(pontoSelecionado.horaFuncionamento, 'Não informado'),        icon: 'bi-clock-fill',        color: '#2563eb', bg: '#eff6ff', border: '#bfdbfe' },
+                  { label: 'Contato',   value: textoOuPadrao(pontoSelecionado.telefone),                                  icon: 'bi-telephone-fill',    color: '#7c3aed', bg: '#faf5ff', border: '#ddd6fe' },
                   { label: 'Materiais', value: `${formatarMateriais(pontoSelecionado.material).split(', ').length} tipos`, icon: 'bi-recycle',           color: '#d97706', bg: '#fffbeb', border: '#fde68a' },
                 ].map((item, i) => (
                   <div key={i} style={{
@@ -565,8 +545,8 @@ function PontosColeta() {
                         label="Endereço"
                         icon="bi-signpost-2-fill"
                         value={pontoSelecionado.logradouro
-                          ? `${pontoSelecionado.logradouro}, Nº ${pontoSelecionado.numero}`
-                          : `CEP: ${pontoSelecionado.cep}, Nº ${pontoSelecionado.numero}`}
+                          ? `${pontoSelecionado.logradouro}${pontoSelecionado.numero ? `, Nº ${pontoSelecionado.numero}` : ''}`
+                          : `CEP: ${textoOuPadrao(pontoSelecionado.cep)}${pontoSelecionado.numero ? `, Nº ${pontoSelecionado.numero}` : ''}`}
                       />
                       {pontoSelecionado.complemento && (
                         <LocationField
@@ -603,16 +583,16 @@ function PontosColeta() {
                       return (
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
                           {lista.map((mat, i) => {
-                            const cfg = materialConfig[mat] || { color: '#6b7280', emoji: '♻️' };
+                            const cfg = materialConfig[mat] || { color: '#6b7280', icon: 'recycle' };
                             const p = pastel[mat] || { bg: '#f3f4f6', border: '#d1d5db', text: '#374151' };
                             return (
-                              <span key={i} style={{
+              <span key={i} className="material-tag" style={{
                                 display: 'inline-flex', alignItems: 'center', gap: '6px',
                                 padding: '6px 13px', borderRadius: '999px',
                                 background: p.bg, border: `1.5px solid ${p.border}`,
                                 color: p.text, fontSize: '0.78rem', fontWeight: 600,
                               }}>
-                                <span style={{ fontSize: '0.95rem', lineHeight: 1 }}>{cfg.emoji}</span>
+                                <Icon name={cfg.icon} size={14} />
                                 {mat}
                               </span>
                             );
@@ -673,3 +653,4 @@ function PontosColeta() {
 }
 
 export default PontosColeta;
+

@@ -11,10 +11,12 @@ import PontosColeta from './pages/PontosColeta';
 import CadastrarPonto from './pages/CadastrarPonto';
 import LoginAdmin from './pages/LoginAdmin';
 import LoginUsuario from './pages/LoginUsuario';
+import LoginPonto from './pages/LoginPonto';
 import CadastroUsuario from './pages/CadastroUsuario';
 import RecuperarSenha from './pages/RecuperarSenha';
 import GerenciarContas from './pages/GerenciarContas';
 import PersonalizarPonto from './pages/PersonalizarPonto';
+import MeuPerfil from './pages/MeuPerfil';
 import MateriaisReciclaveis from './pages/MateriaisReciclaveis';
 import Residuos from './pages/Residuos';
 import FAQ from './pages/FAQ';
@@ -34,6 +36,7 @@ function Layout() {
   const isAuthPage = [
     '/login-usuario',
     '/login-admin',
+    '/login-ponto',
     '/cadastro-usuario',
     '/recuperar-senha',
     '/redefinir-senha',
@@ -43,7 +46,7 @@ function Layout() {
     <div className="App">
       <ScrollToTop />
       <Navbar />
-      <div className="container">
+      <main className="container app-main">
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/pontos" element={<PontosColeta />} />
@@ -53,6 +56,7 @@ function Layout() {
             </ProtectedRoute>
           } />
           <Route path="/login-admin" element={<LoginAdmin />} />
+          <Route path="/login-ponto" element={<LoginPonto />} />
           <Route path="/login-usuario" element={<LoginUsuario />} />
           <Route path="/cadastro-usuario" element={<CadastroUsuario />} />
           <Route path="/recuperar-senha" element={<RecuperarSenha />} />
@@ -67,6 +71,11 @@ function Layout() {
               <GerenciarContas />
             </ProtectedRoute>
           } />
+          <Route path="/perfil" element={
+            <ProtectedRoute tipoRequerido="perfilUsuario">
+              <MeuPerfil />
+            </ProtectedRoute>
+          } />
           <Route path="/personalizar-ponto" element={
             <ProtectedRoute tipoRequerido="ponto">
               <PersonalizarPonto />
@@ -74,7 +83,7 @@ function Layout() {
           } />
           <Route path="*" element={<NotFound />} />
         </Routes>
-      </div>
+      </main>
       {!isAuthPage && <Footer />}
     </div>
   );

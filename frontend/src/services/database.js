@@ -1,9 +1,20 @@
 // Simulação de banco de dados local
+function lerListaLocalStorage(chave) {
+  try {
+    const valor = localStorage.getItem(chave);
+    const lista = valor ? JSON.parse(valor) : [];
+    return Array.isArray(lista) ? lista : [];
+  } catch {
+    localStorage.removeItem(chave);
+    return [];
+  }
+}
+
 class Database {
   constructor() {
-    this.pontos = JSON.parse(localStorage.getItem('pontos') || '[]');
-    this.empresas = JSON.parse(localStorage.getItem('empresas') || '[]');
-    this.usuarios = JSON.parse(localStorage.getItem('usuarios') || '[]');
+    this.pontos = lerListaLocalStorage('pontos');
+    this.empresas = lerListaLocalStorage('empresas');
+    this.usuarios = lerListaLocalStorage('usuarios');
     this.inicializarDadosExemplo();
   }
 
@@ -285,7 +296,7 @@ class Database {
     return tipos.join(', ');
   }
 
-  buscarPonto(email, senha) {
+  buscarPonto() {
     // Autenticação de pontos deve ser feita via API backend
     return null;
   }
@@ -322,7 +333,7 @@ class Database {
     return novaEmpresa;
   }
 
-  buscarEmpresa(email, senha) {
+  buscarEmpresa() {
     // Autenticação de empresas deve ser feita via API backend
     return null;
   }
@@ -361,7 +372,7 @@ class Database {
     return novoUsuario;
   }
 
-  buscarUsuario(email, senha) {
+  buscarUsuario() {
     // Autenticação de usuários deve ser feita via API backend
     return null;
   }

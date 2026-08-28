@@ -1,17 +1,14 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { apiService } from '../services/api';
-
-const AuthContext = createContext();
-
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) throw new Error('useAuth deve ser usado dentro de AuthProvider');
-  return context;
-};
+import { AuthContext } from './authContextValue';
 
 export const AuthProvider = ({ children }) => {
   const [usuario, setUsuario] = useState(() => {
     try {
+      if (!apiService.isAuthenticated()) {
+        localStorage.removeItem('usuario_logado');
+        return null;
+      }
       const saved = localStorage.getItem('usuario_logado');
       return saved ? JSON.parse(saved) : null;
     } catch {
@@ -81,6 +78,11 @@ export const AuthProvider = ({ children }) => {
     return response;
   };
 
+  const loginPonto = (ponto) => {
+    setUsuario({ tipo: 'ponto', dados: ponto });
+    return { success: true };
+  };
+
   const cadastrarUsuario = async (dadosUsuario) => {
     await apiService.cadastrar(dadosUsuario);
     return { success: true };
@@ -114,6 +116,7 @@ export const AuthProvider = ({ children }) => {
       usuario,
       loginAdmin,
       loginUsuario,
+      loginPonto,
       cadastrarUsuario,
       logout,
       isLogado,

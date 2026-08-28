@@ -1,8 +1,11 @@
-import { useState, useEffect } from 'react';
-import { apiService } from '../services/api';
+import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { API_BASE_URL, apiService } from '../services/api';
 import ConfirmModal from '../components/ConfirmModal';
 
 function GerenciarContas() {
+  const navigate = useNavigate();
+  const apiOrigin = new URL(API_BASE_URL).origin;
   const [usuarios, setUsuarios] = useState([]);
   const [pontos, setPontos] = useState([]);
   const [inativos, setInativos] = useState([]);
@@ -18,9 +21,9 @@ function GerenciarContas() {
   const [buscaPonto, setBuscaPonto] = useState('');
   const [aba, setAba] = useState('usuarios');
 
-  useEffect(() => { carregarDados(); }, []);
-
-  const carregarDados = async () => {
+  const carregarDados = useCallback(async () => {
+    setLoading(true);
+    setErro('');
     try {
       const [pontosData, usuariosData, pendentesData] = await Promise.all([
         apiService.listarTodosPontos(),
@@ -30,9 +33,12 @@ function GerenciarContas() {
       const mapPonto = p => ({
         id: p.id, nome: p.nome, cep: p.cep, numero: p.numero,
         complemento: p.complemento, logradouro: p.logradouro,
+        bairro: p.bairro, cidade: p.cidade, estado: p.estado,
         telefone: p.telefone, descricao: p.descricao,
         material: p.material, horaFuncionamento: p.horaFuncionamento,
-        status: p.statusPonto, email: p.email
+        status: p.statusPonto, email: p.email,
+        cnpj: p.cnpj, statusVerificacao: p.statusVerificacao,
+        motivoVerificacao: p.motivoVerificacao, fonteVerificacao: p.fonteVerificacao
       });
       setPontos(pontosData.filter(p => p.statusPonto === 'ATIVO').map(mapPonto));
       setPontosInativos(pontosData.filter(p => p.statusPonto === 'INATIVO').map(mapPonto));
@@ -40,12 +46,18 @@ function GerenciarContas() {
         id: p.id, nome: p.nome, cep: p.cep, material: p.material,
         horaFuncionamento: p.horaFuncionamento, email: p.email,
         status: p.statusPonto,
-        telefone: p.telefone, descricao: p.descricao, logradouro: p.logradouro
+        telefone: p.telefone, descricao: p.descricao, logradouro: p.logradouro,
+        bairro: p.bairro, cidade: p.cidade, estado: p.estado,
+        cnpj: p.cnpj, statusVerificacao: p.statusVerificacao,
+        motivoVerificacao: p.motivoVerificacao, fonteVerificacao: p.fonteVerificacao
       })));
       setPendentes(pendentesData.map(p => ({
         id: p.id, nome: p.nome, cep: p.cep, material: p.material,
         horaFuncionamento: p.horaFuncionamento, email: p.email,
-        telefone: p.telefone, descricao: p.descricao, logradouro: p.logradouro
+        telefone: p.telefone, descricao: p.descricao, logradouro: p.logradouro,
+        bairro: p.bairro, cidade: p.cidade, estado: p.estado,
+        cnpj: p.cnpj, statusVerificacao: p.statusVerificacao,
+        motivoVerificacao: p.motivoVerificacao, fonteVerificacao: p.fonteVerificacao
       })));
       const usuariosMapeados = usuariosData.map(u => ({
         id: u.id, nome: u.nome, email: u.email,
@@ -54,11 +66,20 @@ function GerenciarContas() {
       setUsuarios(usuariosMapeados.filter(u => u.ativo || u.nivelAcesso === 'ADMIN'));
       setInativos(usuariosMapeados.filter(u => !u.ativo && u.nivelAcesso !== 'ADMIN'));
     } catch (e) {
-      setErro('Erro ao carregar dados. Verifique sua conexão.');
+      if (e.status === 401) {
+        navigate('/login-admin', {
+          replace: true,
+          state: { erro: 'Sessão expirada. Faça login novamente.' },
+        });
+        return;
+      }
+      setErro(e.message || 'Erro ao carregar dados do painel administrativo.');
     } finally {
       setLoading(false);
     }
-  };
+  }, [navigate]);
+
+  useEffect(() => { carregarDados(); }, [carregarDados]);
 
   const alterarStatus = async (tipo, id) => {
     try {
@@ -103,6 +124,9 @@ function GerenciarContas() {
         nome: editando.nome,
         cep: editando.cep,
         logradouro: editando.logradouro,
+        bairro: editando.bairro,
+        cidade: editando.cidade,
+        estado: editando.estado,
         numero: editando.numero,
         complemento: editando.complemento,
         telefone: editando.telefone,
@@ -152,7 +176,7 @@ function GerenciarContas() {
             <i className="bi bi-wifi-off" style={{fontSize: '2.5rem', color: '#ef4444'}}></i>
           </div>
           <h5 className="text-danger fw-bold">{erro}</h5>
-          <p className="text-muted">Verifique se o backend está rodando em <code>http://localhost:8080</code></p>
+          <p className="text-muted">Verifique se o backend está rodando em <code>{apiOrigin}</code></p>
           <button className="btn btn-danger mt-2 px-4 fw-bold" style={{borderRadius:'12px'}} onClick={() => { setErro(''); setLoading(true); carregarDados(); }}>
             <i className="bi bi-arrow-clockwise me-2"></i>Tentar novamente
           </button>
@@ -306,7 +330,7 @@ function GerenciarContas() {
                       {u.nivelAcesso !== 'ADMIN' ? (
                         <>
                           <span className="badge px-3 py-2 rounded-pill fw-bold" style={{background: u.ativo ? 'linear-gradient(135deg, #10b981, #059669)' : 'linear-gradient(135deg, #ef4444, #dc2626)', color: 'white', border: 'none'}}>
-                            {u.ativo ? '✨ Ativo' : '⚠️ Inativo'}
+                            {u.ativo ? 'Ativo' : 'Inativo'}
                           </span>
                           <button className="btn btn-sm px-3 py-2 fw-bold" onClick={() => alterarStatus('usuarios', u.id)}
                             style={{...btn, background: u.ativo ? 'linear-gradient(135deg, #f59e0b, #d97706)' : 'linear-gradient(135deg, #10b981, #059669)'}}>
@@ -390,8 +414,13 @@ function GerenciarContas() {
                               : 'linear-gradient(135deg, #ef4444, #dc2626)',
                             color: 'white', border: 'none'
                           }}>
-                            {p.status === 'ATIVO' ? '✨ Ativo' : p.status === 'REJEITADO' ? '❌ Rejeitado' : '⚠️ Inativo'}
+                            {p.status === 'ATIVO' ? 'Ativo' : p.status === 'REJEITADO' ? 'Rejeitado' : 'Inativo'}
                           </span>
+                          {p.statusVerificacao === 'VERIFICADO' && (
+                            <span className="badge px-3 py-2 rounded-pill fw-bold" style={{background: '#ecfdf5', color: '#047857', border: '1px solid #a7f3d0'}}>
+                              <i className="bi bi-patch-check-fill me-1"></i>Verificado
+                            </span>
+                          )}
                           <button className="btn btn-sm px-3 py-2 fw-bold" onClick={() => abrirEdicao(p)}
                             style={{...btn, background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)'}}>
                             <i className="bi bi-pencil-fill me-1"></i>Editar
@@ -456,7 +485,7 @@ function GerenciarContas() {
                       </div>
                       <div className="d-flex align-items-center gap-2 flex-wrap">
                         <span className="badge px-3 py-2 rounded-pill fw-bold" style={{background: 'linear-gradient(135deg, #64748b, #475569)', color: 'white', border: 'none'}}>
-                          ⚠️ Inativo
+                          Inativo
                         </span>
                         <button className="btn btn-sm px-3 py-2 fw-bold" onClick={() => alterarStatus('pontos', p.id)}
                           style={{...btn, background: 'linear-gradient(135deg, #10b981, #059669)'}}>
@@ -497,7 +526,7 @@ function GerenciarContas() {
                   <p className="text-muted">Nenhum ponto aguardando aprovação.</p>
                 </div>
               ) : (
-                pendentes.map((p, i) => (
+                pendentes.map((p) => (
                   <div key={p.id} className="p-4 mb-4 rounded-4" style={{background: 'rgba(245,158,11,0.05)', border: '2px solid rgba(245,158,11,0.2)'}}>
                     <div className="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-3">
                       <div className="d-flex align-items-center">
@@ -514,6 +543,12 @@ function GerenciarContas() {
                       </span>
                     </div>
                     <div className="row g-2 mb-3">
+                      {p.statusVerificacao && (
+                        <div className="col-md-4">
+                          <small className="text-muted d-block"><i className="bi bi-shield-check me-1 text-warning"></i>Verificacao</small>
+                          <small className="fw-medium">{p.statusVerificacao}</small>
+                        </div>
+                      )}
                       {p.material && (
                         <div className="col-md-4">
                           <small className="text-muted d-block"><i className="bi bi-recycle me-1 text-success"></i>Materiais</small>
@@ -539,6 +574,12 @@ function GerenciarContas() {
                         </div>
                       )}
                     </div>
+                    {p.motivoVerificacao && (
+                      <div className="p-3 rounded-3 mb-3" style={{background: '#fff7ed', border: '1px solid #fed7aa'}}>
+                        <small className="text-muted d-block mb-1"><i className="bi bi-exclamation-triangle me-1"></i>Motivo da revisao</small>
+                        <small className="fw-medium">{p.motivoVerificacao}</small>
+                      </div>
+                    )}
                     {p.descricao && (
                       <div className="p-3 rounded-3 mb-3" style={{background: 'rgba(0,0,0,0.03)', border: '1px solid rgba(0,0,0,0.06)'}}>
                         <small className="text-muted d-block mb-1"><i className="bi bi-card-text me-1"></i>Descrição</small>
@@ -596,7 +637,7 @@ function GerenciarContas() {
                         </div>
                       </div>
                       <span className="badge px-3 py-2 rounded-pill fw-bold" style={{background: 'linear-gradient(135deg, #ef4444, #dc2626)', color: 'white', border: 'none'}}>
-                        ❌ Rejeitado
+                        Rejeitado
                       </span>
                     </div>
                     <div className="row g-2 mb-3">
@@ -681,7 +722,7 @@ function GerenciarContas() {
                       </div>
                       <div className="d-flex align-items-center gap-2 flex-wrap">
                         <span className="badge px-3 py-2 rounded-pill fw-bold" style={{background: 'linear-gradient(135deg, #6b7280, #4b5563)', color: 'white', border: 'none'}}>
-                          ⚠️ Inativo
+                          Inativo
                         </span>
                         <button className="btn btn-sm px-3 py-2 fw-bold" onClick={() => alterarStatus('usuarios', u.id)}
                           style={{...btn, background: 'linear-gradient(135deg, #10b981, #059669)'}}>
@@ -744,6 +785,18 @@ function GerenciarContas() {
                     <label className="form-label fw-bold text-muted small">Logradouro</label>
                     <input className="form-control" value={editando.logradouro || ''} onChange={e => setEditando(prev => ({...prev, logradouro: e.target.value}))} style={{borderRadius: '10px'}} />
                   </div>
+                  <div className="col-md-4">
+                    <label className="form-label fw-bold text-muted small">Bairro</label>
+                    <input className="form-control" value={editando.bairro || ''} onChange={e => setEditando(prev => ({...prev, bairro: e.target.value}))} style={{borderRadius: '10px'}} />
+                  </div>
+                  <div className="col-md-5">
+                    <label className="form-label fw-bold text-muted small">Cidade</label>
+                    <input className="form-control" value={editando.cidade || ''} onChange={e => setEditando(prev => ({...prev, cidade: e.target.value}))} style={{borderRadius: '10px'}} />
+                  </div>
+                  <div className="col-md-3">
+                    <label className="form-label fw-bold text-muted small">UF</label>
+                    <input className="form-control" maxLength={2} value={editando.estado || ''} onChange={e => setEditando(prev => ({...prev, estado: e.target.value.toUpperCase().slice(0, 2)}))} style={{borderRadius: '10px'}} />
+                  </div>
                   <div className="col-md-6">
                     <label className="form-label fw-bold text-muted small">Complemento</label>
                     <input className="form-control" value={editando.complemento || ''} onChange={e => setEditando(prev => ({...prev, complemento: e.target.value}))} style={{borderRadius: '10px'}} />
@@ -796,3 +849,5 @@ function GerenciarContas() {
 }
 
 export default GerenciarContas;
+
+

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../contexts/useAuth';
 
 function CadastroUsuario() {
   const [formData, setFormData] = useState({ nome: '', email: '', senha: '', confirmarSenha: '' });
@@ -49,10 +49,10 @@ function CadastroUsuario() {
   const labelStyle = { fontWeight: 600, color: '#166534', fontSize: '0.85rem', marginBottom: '6px', display: 'block' };
 
   return (
-    <div className="page-content" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem 1rem' }}>
+    <div className="page-content auth-surface" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem 1rem' }}>
       <div className="animate-scaleIn" style={{ width: '100%', maxWidth: '480px' }}>
 
-        <div className="clay" style={{ overflow: 'hidden', background: 'rgba(255,255,255,0.78)' }}>
+        <div className="clay auth-card" style={{ overflow: 'hidden', background: 'rgba(255,255,255,0.78)' }}>
           {/* Header */}
           <div style={{ background: 'linear-gradient(135deg, #16a34a 0%, #22c55e 100%)', padding: '2.5rem 2rem', textAlign: 'center', borderBottom: '2px solid rgba(255,255,255,0.3)', boxShadow: '0 4px 0px rgba(0,0,0,0.08)' }}>
             <div style={{ width: '80px', height: '80px', background: 'rgba(255,255,255,0.2)', borderRadius: '50%', border: '2px solid rgba(255,255,255,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem', boxShadow: '4px 4px 0px rgba(0,0,0,0.12)', fontSize: '2rem' }}>

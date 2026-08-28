@@ -57,8 +57,8 @@ function RedefinirSenha() {
   };
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f8fffe', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-      <div className="animate-scaleIn" style={{ background: 'white', borderRadius: '20px', boxShadow: '0 20px 40px rgba(0,0,0,0.1)', overflow: 'hidden', maxWidth: '450px', width: '100%' }}>
+    <div className="auth-surface" style={{ minHeight: '100vh', background: '#f8fffe', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+      <div className="auth-card animate-scaleIn" style={{ background: 'white', borderRadius: '20px', boxShadow: '0 20px 40px rgba(0,0,0,0.1)', overflow: 'hidden', maxWidth: '450px', width: '100%' }}>
 
         <div style={{ background: 'linear-gradient(135deg, #10b981, #059669)', padding: '2rem', textAlign: 'center' }}>
           <div style={{ width: '80px', height: '80px', background: 'rgba(255,255,255,0.2)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem', fontSize: '2rem' }}>

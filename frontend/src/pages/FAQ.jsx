@@ -101,7 +101,7 @@ function FAQ() {
   return (
     <div className="page-content" style={{ paddingBottom: '2rem' }}>
       {/* Hero */}
-      <div className="clay mb-5 animate-fadeInUp" style={{ padding: '4rem 2rem', background: 'rgba(255,255,255,0.7)', position: 'relative', overflow: 'hidden' }}>
+      <div className="clay education-hero mb-5 animate-fadeInUp" style={{ padding: '4rem 2rem', background: 'rgba(255,255,255,0.7)', position: 'relative', overflow: 'hidden' }}>
         <div className="animate-float" style={{ position: 'absolute', top: '15%', right: '10%', width: '80px', height: '80px', background: 'rgba(74,222,128,0.2)', borderRadius: '50%', border: '2px solid rgba(74,222,128,0.3)' }}></div>
         <div className="animate-float animate-delay-2" style={{ position: 'absolute', bottom: '20%', left: '5%', width: '60px', height: '60px', background: 'rgba(34,197,94,0.15)', borderRadius: '50%' }}></div>
         <div className="text-center position-relative" style={{ zIndex: 2 }}>

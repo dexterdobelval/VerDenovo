@@ -7,7 +7,7 @@ function ConfirmModal({ titulo, mensagem, onConfirmar, onCancelar, corBotao = 'd
   }, []);
 
   return (
-    <div className="modal d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 2000, animation: 'modalFadeIn 0.2s ease-out' }}>
+    <div className="modal d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 2000 }}>
       <div className="modal-dialog modal-dialog-centered" style={{ maxWidth: '420px' }}>
         <div className="modal-content border-0 shadow-lg" style={{ borderRadius: '20px' }}>
           <div className="modal-body p-4 text-center">

@@ -1,12 +1,13 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/useAuth';
 
 function LoginAdmin() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { loginAdmin } = useAuth();
   const [formData, setFormData] = useState({ email: '', senha: '' });
-  const [erro, setErro] = useState('');
+  const [erro, setErro] = useState(location.state?.erro || '');
   const [carregando, setCarregando] = useState(false);
   const [mostrarSenha, setMostrarSenha] = useState(false);
   const [tentativas, setTentativas] = useState(0);

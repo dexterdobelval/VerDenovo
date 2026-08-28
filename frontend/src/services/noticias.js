@@ -1,8 +1,18 @@
 // Simulação de API de notícias do Brasil
+function lerNoticiasSalvas() {
+  try {
+    const noticias = JSON.parse(localStorage.getItem('noticias') || '[]');
+    return Array.isArray(noticias) ? noticias : [];
+  } catch {
+    localStorage.removeItem('noticias');
+    return [];
+  }
+}
+
 class NoticiasService {
   constructor() {
     this.ultimaAtualizacao = localStorage.getItem('ultimaAtualizacaoNoticias');
-    this.noticias = JSON.parse(localStorage.getItem('noticias') || '[]');
+    this.noticias = lerNoticiasSalvas();
   }
 
   // Simula busca de notícias do Brasil
