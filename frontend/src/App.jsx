@@ -16,7 +16,6 @@ import CadastroUsuario from './pages/CadastroUsuario';
 import RecuperarSenha from './pages/RecuperarSenha';
 import GerenciarContas from './pages/GerenciarContas';
 import PersonalizarPonto from './pages/PersonalizarPonto';
-import MeuPerfil from './pages/MeuPerfil';
 import MateriaisReciclaveis from './pages/MateriaisReciclaveis';
 import Residuos from './pages/Residuos';
 import FAQ from './pages/FAQ';
@@ -69,11 +68,6 @@ function Layout() {
           <Route path="/gerenciar-contas" element={
             <ProtectedRoute tipoRequerido="admin">
               <GerenciarContas />
-            </ProtectedRoute>
-          } />
-          <Route path="/perfil" element={
-            <ProtectedRoute tipoRequerido="perfilUsuario">
-              <MeuPerfil />
             </ProtectedRoute>
           } />
           <Route path="/personalizar-ponto" element={

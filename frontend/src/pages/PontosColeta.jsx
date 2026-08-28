@@ -2,14 +2,15 @@ import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { apiService } from '../services/api';
 import Icon from '../components/Icon';
-import { MATERIAIS_ACEITOS, normalizarMateriais } from '../utils/materiais';
 
-const materialConfig = Object.fromEntries(
-  MATERIAIS_ACEITOS.map(material => [
-    material.label,
-    { id: material.id, icon: material.icon, color: material.color }
-  ])
-);
+const materialConfig = {
+  'Papel':      { icon: 'paper',      color: '#4f7da8' },
+  'Plástico':   { icon: 'plastic',    color: '#b86a64' },
+  'Vidro':      { icon: 'glass',      color: '#3f8f6b' },
+  'Metal':      { icon: 'metal',      color: '#b88a3d' },
+  'Eletrônico': { icon: 'electronic', color: '#7c6aa8' },
+  'Orgânico':   { icon: 'organic',    color: '#6b9448' },
+};
 
 const pastel = {
   'Papel':      { bg: '#dbeafe', activeBg: '#2563eb', border: '#93c5fd', activeText: '#fff', text: '#1d4ed8' },
@@ -20,10 +21,18 @@ const pastel = {
   'Orgânico':   { bg: '#ecfccb', activeBg: '#65a30d', border: '#bef264', activeText: '#fff', text: '#3f6212' },
 };
 
+const normalizarMateriais = (material) => {
+  if (!material) return ['Não informado'];
+  if (Array.isArray(material)) return material.filter(Boolean);
+  if (typeof material === 'object') {
+    return Object.entries(material)
+      .filter(([, ativo]) => Boolean(ativo))
+      .map(([nome]) => nome.charAt(0).toUpperCase() + nome.slice(1));
+  }
+  return String(material).split(',').map(item => item.trim()).filter(Boolean);
+};
 
 const textoOuPadrao = (valor, padrao = 'Não informado') => valor || padrao;
-
-const pontoVerificado = (ponto) => ponto?.statusVerificacao === 'VERIFICADO';
 
 function FilterChip({ nome, cfg, ativo, onClick }) {
   const p = pastel[nome] || { bg: '#f3f4f6', activeBg: '#374151', border: '#d1d5db', activeText: '#fff', text: '#374151' };
@@ -78,6 +87,7 @@ function SearchInput({ busca, setBusca }) {
 }
 
 function PontoCard({ ponto, onClick }) {
+  const cfg_mat = (mat) => materialConfig[mat] || { color: '#6b7280', icon: 'recycle' };
   const materiais = normalizarMateriais(ponto.material);
   const enderecoCurto = ponto.logradouro
     ? `${ponto.logradouro}${ponto.numero ? `, Nº ${ponto.numero}` : ''}`
@@ -101,18 +111,10 @@ function PontoCard({ ponto, onClick }) {
         <div className="point-card-content">
           <div className="point-card-heading">
             <div>
-              <div className="d-flex gap-2 flex-wrap mb-1">
-                <span className="point-status">
-                  <i className="bi bi-circle-fill" />
-                  Ativo
-                </span>
-                {pontoVerificado(ponto) && (
-                  <span className="point-status" style={{ background: '#ecfdf5', color: '#047857', borderColor: '#a7f3d0' }}>
-                    <i className="bi bi-patch-check-fill" />
-                    Verificado
-                  </span>
-                )}
-              </div>
+              <span className="point-status">
+                <i className="bi bi-circle-fill" />
+                Ativo
+              </span>
               <h3>{textoOuPadrao(ponto.nome, 'Ponto de coleta')}</h3>
             </div>
           </div>
@@ -139,10 +141,10 @@ function PontoCard({ ponto, onClick }) {
       <div className="point-card-footer">
         <div className="point-materials">
           {materiais.slice(0, 4).map((mat) => {
-              const c = materialConfig[mat.label] || { color: mat.color, icon: mat.icon };
+              const c = cfg_mat(mat);
               return (
-                <span key={mat.id || mat.label} className="material-tag" style={{ color: c.color, background: `${c.color}18`, border: `1px solid ${c.color}35` }}>
-                  <Icon name={c.icon} size={13} />{mat.label}
+                <span key={mat} className="material-tag" style={{ color: c.color, background: `${c.color}18`, border: `1px solid ${c.color}35` }}>
+                  <Icon name={c.icon} size={13} />{mat}
                 </span>
               );
             })}
@@ -286,31 +288,28 @@ function PontosColeta() {
     }
   };
 
-  const toggleMaterial = (materialId) => {
+  const toggleMaterial = (mat) => {
     setFiltroMateriais(prev =>
-      prev.includes(materialId) ? prev.filter(m => m !== materialId) : [...prev, materialId]
+      prev.includes(mat) ? prev.filter(m => m !== mat) : [...prev, mat]
     );
   };
 
   const pontosFiltrados = useMemo(() => {
     return pontos.filter(p => {
       const termoBusca = busca.toLowerCase();
-      const materialIds = normalizarMateriais(p.material).map(material => material.id);
+      const materiais = normalizarMateriais(p.material);
       const matchBusca = !busca ||
         p.nome?.toLowerCase().includes(termoBusca) ||
         p.cep?.includes(termoBusca) ||
         p.logradouro?.toLowerCase().includes(termoBusca) ||
         p.numero?.toLowerCase().includes(termoBusca);
       const matchMaterial = filtroMateriais.length === 0 ||
-        filtroMateriais.every(m => materialIds.includes(m));
+        filtroMateriais.every(m => materiais.includes(m));
       return matchBusca && matchMaterial;
     });
   }, [pontos, busca, filtroMateriais]);
 
-  const formatarMateriais = (material) => {
-    const materiais = normalizarMateriais(material);
-    return materiais.length ? materiais.map(item => item.label).join(', ') : 'Não informado';
-  };
+  const formatarMateriais = (material) => normalizarMateriais(material).join(', ');
 
   const abrirMaps = (ponto) => {
     const query = encodeURIComponent(`${ponto?.logradouro || ''} ${ponto?.numero || ''} ${ponto?.cep || ''}`.trim() || ponto?.nome || 'ponto de coleta');
@@ -371,11 +370,10 @@ function PontosColeta() {
         <div className="points-filter-row">
           <span className="points-filter-label">Materiais</span>
           <div className="points-filter-chips">
-            {MATERIAIS_ACEITOS.map((material) => {
-              const cfg = materialConfig[material.label];
-              const ativo = filtroMateriais.includes(material.id);
+            {Object.entries(materialConfig).map(([nome, cfg]) => {
+              const ativo = filtroMateriais.includes(nome);
               return (
-                <FilterChip key={material.id} nome={material.label} cfg={cfg} ativo={ativo} onClick={() => toggleMaterial(material.id)} />
+                <FilterChip key={nome} nome={nome} cfg={cfg} ativo={ativo} onClick={() => toggleMaterial(nome)} />
               );
             })}
           </div>
@@ -499,12 +497,9 @@ function PontosColeta() {
               </div>
 
               {/* Stats bar */}
-              <div className="modal-pontos-stats" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', borderBottom: '1px solid #f0f0f0', background: '#f8fafc', padding: '1.25rem 1.5rem', gap: '0.75rem' }}>
+              <div className="modal-pontos-stats" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', borderBottom: '1px solid #f0f0f0', background: '#f8fafc', padding: '1.25rem 1.5rem', gap: '0.75rem' }}>
                 {[
                   { label: 'Status',    value: 'Ativo',                                                                   icon: 'bi-check-circle-fill', color: '#059669', bg: '#f0fdf4', border: '#bbf7d0' },
-                  ...(pontoVerificado(pontoSelecionado)
-                    ? [{ label: 'Verificacao', value: 'Verificado', icon: 'bi-patch-check-fill', color: '#047857', bg: '#ecfdf5', border: '#a7f3d0' }]
-                    : []),
                   { label: 'Horário',   value: textoOuPadrao(pontoSelecionado.horaFuncionamento, 'Não informado'),        icon: 'bi-clock-fill',        color: '#2563eb', bg: '#eff6ff', border: '#bfdbfe' },
                   { label: 'Contato',   value: textoOuPadrao(pontoSelecionado.telefone),                                  icon: 'bi-telephone-fill',    color: '#7c3aed', bg: '#faf5ff', border: '#ddd6fe' },
                   { label: 'Materiais', value: `${formatarMateriais(pontoSelecionado.material).split(', ').length} tipos`, icon: 'bi-recycle',           color: '#d97706', bg: '#fffbeb', border: '#fde68a' },
@@ -653,4 +648,3 @@ function PontosColeta() {
 }
 
 export default PontosColeta;
-

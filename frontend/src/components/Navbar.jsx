@@ -238,15 +238,8 @@ function Navbar() {
                           <i className="bi bi-people-fill"></i>Gerenciar Contas
                         </Link>
                       </>
-                    ) : usuario.tipo === 'ponto' ? (
-                      <Link className={`nav-item-clay ${isActive('/personalizar-ponto') ? 'active' : ''}`} to="/personalizar-ponto" onClick={fechar}>
-                        <i className="bi bi-gear-fill"></i>Meu Ponto
-                      </Link>
                     ) : usuario.tipo === 'usuario' ? (
                       <>
-                        <Link className={`nav-item-clay ${isActive('/perfil') ? 'active' : ''}`} to="/perfil" onClick={fechar}>
-                          <i className="bi bi-person-lines-fill"></i>Meu Perfil
-                        </Link>
                         {usuario.pontoVinculado && (
                           <Link className={`nav-item-clay ${isActive('/personalizar-ponto') ? 'active' : ''}`} to="/personalizar-ponto" onClick={fechar}>
                             <i className="bi bi-gear-fill"></i>Gerenciar Meu Ponto

@@ -1,4 +1,4 @@
-export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
 
 const ALLOWED_ORIGIN = new URL(API_BASE_URL).origin;
 
@@ -24,25 +24,9 @@ function mensagemAmigavel(mensagem, fallback = 'Não foi possível concluir a op
 // Token mantido em memória — não acessível por scripts XSS via localStorage
 let _tokenMemoria = null;
 
-function mensagemPorStatus(status) {
-  const mensagens = {
-    401: 'Sessão expirada. Faça login novamente.',
-    403: 'Você não tem permissão de administrador para acessar estes dados.',
-    404: 'Endpoint não encontrado. Verifique a integração com a API.',
-    500: 'Erro interno no servidor. Tente novamente em instantes.',
-  };
-  return mensagens[status] || `Erro ${status} ao comunicar com a API.`;
-}
-
-function criarErroApi(mensagem, status) {
-  const erro = new Error(mensagem);
-  erro.status = status;
-  return erro;
-}
-
 class ApiService {
   getToken() {
-    const token = _tokenMemoria || localStorage.getItem('token');
+    const token = _tokenMemoria;
     if (!token) return null;
     try {
       const payload = JSON.parse(atob(token.split('.')[1]));
@@ -50,7 +34,6 @@ class ApiService {
         this.logout();
         return null;
       }
-      _tokenMemoria = token;
     } catch {
       this.logout();
       return null;
@@ -70,30 +53,29 @@ class ApiService {
     let response;
     try {
       response = await fetch(url, {
+        headers: this.getHeaders(),
         ...options,
-        headers: {
-          ...this.getHeaders(),
-          ...(options.headers || {}),
-        },
       });
     } catch {
-      throw criarErroApi('Não foi possível conectar ao servidor. Tente novamente em instantes.', 0);
+      throw new Error('Não foi possível conectar ao servidor. Tente novamente em instantes.');
+    }
+
+    if (response.status === 401) {
+      this.logout();
+      window.location.href = '/';
+      return;
     }
 
     if (!response.ok) {
-      const fallback = mensagemPorStatus(response.status);
-      if (response.status === 401) {
-        this.logout();
-      }
       const errorText = await response.text();
       let mensagem;
       try {
         const errorJson = JSON.parse(errorText);
-        mensagem = errorJson.message || fallback;
+        mensagem = errorJson.message || `Erro ${response.status}`;
       } catch {
-        mensagem = errorText || fallback;
+        mensagem = errorText || `Erro ${response.status}`;
       }
-      throw criarErroApi(mensagemAmigavel(mensagem, fallback), response.status);
+      throw new Error(mensagemAmigavel(mensagem));
     }
 
     const contentType = response.headers.get('content-type');
@@ -140,9 +122,7 @@ class ApiService {
   async listarTodosPontos() { return this.request('/pontos/todos'); }
   async listarPontosPendentes() { return this.request('/pontos/pendentes'); }
   async listarMeusPontos() { return this.request('/pontos/meus'); }
-  async buscarMeuPonto() { return this.request('/pontos/me'); }
   async criarPonto(ponto) { return this.request('/pontos', { method: 'POST', body: JSON.stringify(ponto) }); }
-  async atualizarMeuPonto(ponto) { return this.request('/pontos/me', { method: 'PUT', body: JSON.stringify(ponto) }); }
   async atualizarPonto(id, ponto) { return this.request(`/pontos/${id}`, { method: 'PUT', body: JSON.stringify(ponto) }); }
   async aprovarPonto(id) { return this.request(`/pontos/${id}/aprovar`, { method: 'PUT' }); }
   async rejeitarPonto(id) { return this.request(`/pontos/${id}/rejeitar`, { method: 'PUT' }); }
@@ -150,8 +130,6 @@ class ApiService {
   async deletarPonto(id) { return this.request(`/pontos/${id}`, { method: 'DELETE' }); }
   async listarCategorias() { return this.request('/categorias'); }
   async listarUsuarios() { return this.request('/auth/usuarios'); }
-  async buscarMeuPerfil() { return this.request('/auth/usuarios/me'); }
-  async atualizarMeuPerfil(dados) { return this.request('/auth/usuarios/me', { method: 'PUT', body: JSON.stringify(dados) }); }
   async alterarStatusUsuario(id) { return this.request(`/auth/usuarios/${id}/status`, { method: 'PUT' }); }
   async deletarUsuario(id) { return this.request(`/auth/usuarios/${id}`, { method: 'DELETE' }); }
 
@@ -195,10 +173,10 @@ class ApiService {
         if (payload.exp && payload.exp * 1000 > Date.now()) {
           _tokenMemoria = token;
         } else {
-          this.logout();
+          localStorage.removeItem('token');
         }
       } catch {
-        this.logout();
+        localStorage.removeItem('token');
       }
     }
   }

@@ -5,10 +5,6 @@ import { AuthContext } from './authContextValue';
 export const AuthProvider = ({ children }) => {
   const [usuario, setUsuario] = useState(() => {
     try {
-      if (!apiService.isAuthenticated()) {
-        localStorage.removeItem('usuario_logado');
-        return null;
-      }
       const saved = localStorage.getItem('usuario_logado');
       return saved ? JSON.parse(saved) : null;
     } catch {
